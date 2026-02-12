@@ -404,8 +404,23 @@ fun performKeyAction(
                             // Has selection - delete it by committing empty string
                             ic.commitText("", 0)
                         } else {
-                            // No selection - delete one character before cursor
-                            ic.deleteSurroundingText(1, 0)
+                            // No selection - delete one code point before cursor.
+                            // We need to check if the character is a surrogate pair (e.g. emoji)
+                            // which uses 2 UTF-16 code units instead of 1.
+                            val textBefore = ic.getTextBeforeCursor(2, 0)
+                            val deleteCount =
+                                if (textBefore != null &&
+                                    textBefore.length >= 2 &&
+                                    Character.isSurrogatePair(
+                                        textBefore[textBefore.length - 2],
+                                        textBefore[textBefore.length - 1],
+                                    )
+                                ) {
+                                    2
+                                } else {
+                                    1
+                                }
+                            ic.deleteSurroundingText(deleteCount, 0)
                         }
                     }
                 }
