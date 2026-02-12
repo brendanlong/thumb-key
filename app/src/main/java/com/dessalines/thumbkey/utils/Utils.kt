@@ -404,19 +404,22 @@ fun performKeyAction(
                             // Has selection - delete it by committing empty string
                             ic.commitText("", 0)
                         } else {
-                            // No selection - delete one code point before cursor.
-                            // We need to check if the character is a surrogate pair (e.g. emoji)
-                            // which uses 2 UTF-16 code units instead of 1.
-                            val textBefore = ic.getTextBeforeCursor(2, 0)
+                            // No selection - delete one grapheme cluster before cursor.
+                            // Emojis can be multi-code-point sequences (flags, skin tones,
+                            // ZWJ families, etc.) so we use BreakIterator to find the
+                            // boundary of the previous grapheme cluster.
+                            val textBefore = ic.getTextBeforeCursor(50, 0)
                             val deleteCount =
-                                if (textBefore != null &&
-                                    textBefore.length >= 2 &&
-                                    Character.isSurrogatePair(
-                                        textBefore[textBefore.length - 2],
-                                        textBefore[textBefore.length - 1],
-                                    )
-                                ) {
-                                    2
+                                if (textBefore != null && textBefore.isNotEmpty()) {
+                                    val bi = java.text.BreakIterator.getCharacterInstance()
+                                    bi.setText(textBefore.toString())
+                                    val end = bi.last()
+                                    val start = bi.previous()
+                                    if (start == java.text.BreakIterator.DONE) {
+                                        textBefore.length
+                                    } else {
+                                        end - start
+                                    }
                                 } else {
                                     1
                                 }
